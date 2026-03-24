@@ -4,6 +4,7 @@ import { Plus, Minus, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Item } from '../types';
 import { cn } from '../lib/utils';
+import AnimatedNumber from './AnimatedNumber'; // 引入组件
 
 interface ItemCardProps {
   item: Item;
@@ -50,27 +51,33 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onStore, onTake, onEdi
       >
         <h3 className="font-black text-gray-900 truncate text-lg leading-tight">{item.name}</h3>
         <p className="text-xs text-gray-400 truncate font-medium mb-1">{item.details || t('No details')}</p>
-        <div className="flex items-center gap-1.5 bg-blue-50 w-fit px-3 py-1 rounded-full">
+      <div className="flex items-center gap-1.5 bg-blue-50 w-fit px-3 py-1 rounded-full">
           <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">
             {t('Quantity')}
           </span>
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={item.quantity}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.2, opacity: 0 }}
-              transition={{ type: 'spring', damping: 10, stiffness: 300 }}
-              className="text-sm font-black text-blue-600 min-w-[1ch] text-center"
-            >
-              {item.quantity}
-            </motion.span>
-          </AnimatePresence>
+          
+          {/* 这里是修改后的滚动数字容器 */}
+          <div className="relative flex h-5 items-center justify-center overflow-hidden">
+            <AnimatePresence mode="popLayout">
+              <motion.span
+                key={item.quantity}
+                // 改成 y 轴上下移动，实现滚动效果
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -20, opacity: 0 }}
+                transition={{ type: 'spring', damping: 15, stiffness: 300 }}
+                // 加入 tabular-nums 保证数字等宽，min-w-[2ch] 保证宽度不会因为个位数和十位数切换而塌陷
+                className="text-sm font-black text-blue-600 min-w-[2ch] text-center tabular-nums inline-block"
+              >
+                {item.quantity}
+              </motion.span>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2"> 
         <div className="flex flex-col gap-2">
           <motion.button 
             whileTap={{ scale: 0.9 }}

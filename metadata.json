@@ -1,0 +1,5 @@
+{
+  "name": "Smart Inventory",
+  "description": "A mobile-first personal inventory and cabinet management system with QR code support.",
+  "requestFramePermissions": ["camera"]
+}

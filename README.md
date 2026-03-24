@@ -1,11 +1,13 @@
-<div align="center">
+# Smart Personal Inventory & Cabinet Management System
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+## Deployment
 
-  <h1>Built with AI Studio</h2>
+### Docker
+1. Ensure Docker and Docker Compose are installed.
+2. Run `docker-compose up -d`.
+3. Access the app at `http://localhost:3000`.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
-
-  <a href="https://aistudio.google.com/apps">Start building</a>
-
-</div>
+### Environment Variables
+- `JWT_SECRET`: Secret key for JWT signing.
+- `ADMIN_EMAIL`: Default admin email.
+- `ADMIN_PASSWORD`: Default admin password.

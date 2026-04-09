@@ -14,7 +14,7 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
   const { t } = useTranslation();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none p-4 pb-24">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none p-0">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -27,8 +27,9 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="bg-white rounded-t-[40px] w-full max-w-md shadow-2xl pointer-events-auto relative border-t border-gray-100 overflow-hidden flex flex-col max-h-[80vh]"
+        className="bg-white rounded-t-[32px] rounded-b-none w-full max-w-lg shadow-2xl pointer-events-auto relative border-t border-gray-100 overflow-hidden flex flex-col max-h-[90vh] pb-12"
       >
+        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 mt-4 flex-shrink-0" />
         {/* Header Image */}
         <div className="relative h-64 bg-gray-100 flex-shrink-0">
           {item.image_url ? (

@@ -31,7 +31,7 @@ export const CabinetEditModal: React.FC<CabinetEditModalProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none p-4 pb-24">
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none p-0">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -40,12 +40,13 @@ export const CabinetEditModal: React.FC<CabinetEditModalProps> = ({
             className="fixed inset-0 bg-black/10 backdrop-blur-[2px] pointer-events-auto"
           />
           <motion.div 
-            initial={{ y: 100, scale: 0.9, opacity: 0 }}
-            animate={{ y: 0, scale: 1, opacity: 1 }}
-            exit={{ y: 100, scale: 0.9, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-white rounded-[32px] p-6 w-full max-w-sm shadow-[0_20px_50px_rgba(0,0,0,0.15)] pointer-events-auto relative border border-gray-100"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="bg-white rounded-t-[32px] rounded-b-none p-6 pb-12 w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.15)] pointer-events-auto relative border border-gray-100"
           >
+            <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-black text-gray-900">{title}</h2>
               <button onClick={onClose} className="p-1 text-gray-400">

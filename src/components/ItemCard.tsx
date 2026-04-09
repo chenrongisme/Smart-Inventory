@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Minus, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,13 +10,42 @@ interface ItemCardProps {
   item: Item;
   onStore: (id: number) => void;
   onTake: (id: number) => void;
+  onSetQuantity: (id: number, value: number) => void;
   onEdit?: (item: Item) => void;
   onDelete?: (id: number) => void;
   onShowDetails?: (item: Item) => void;
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({ item, onStore, onTake, onEdit, onDelete, onShowDetails }) => {
+export const ItemCard: React.FC<ItemCardProps> = ({ item, onStore, onTake, onSetQuantity, onEdit, onDelete, onShowDetails }) => {
   const { t } = useTranslation();
+  const [isEditingQty, setIsEditingQty] = useState(false);
+  const [editValue, setEditValue] = useState(item.quantity.toString());
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isEditingQty) {
+      setEditValue(item.quantity.toString());
+    }
+  }, [item.quantity, isEditingQty]);
+
+  const handleQtyClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingQty(true);
+  };
+
+  const handleQtyBlur = () => {
+    setIsEditingQty(false);
+    const val = parseInt(editValue);
+    if (!isNaN(val) && val !== item.quantity) {
+      onSetQuantity(item.id, val);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      inputRef.current?.blur();
+    }
+  };
 
   return (
     <motion.div 
@@ -51,27 +80,41 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onStore, onTake, onEdi
       >
         <h3 className="font-black text-gray-900 truncate text-lg leading-tight">{item.name}</h3>
         <p className="text-xs text-gray-400 truncate font-medium mb-1">{item.details || t('No details')}</p>
-      <div className="flex items-center gap-1.5 bg-blue-50 w-fit px-3 py-1 rounded-full">
+      <div 
+        className="flex items-center gap-1.5 bg-blue-50 w-fit px-3 py-1 rounded-full cursor-text"
+        onClick={handleQtyClick}
+      >
           <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">
             {t('Quantity')}
           </span>
           
-          {/* 这里是修改后的滚动数字容器 */}
-          <div className="relative flex h-5 items-center justify-center overflow-hidden">
-            <AnimatePresence mode="popLayout">
-              <motion.span
-                key={item.quantity}
-                // 改成 y 轴上下移动，实现滚动效果
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -20, opacity: 0 }}
-                transition={{ type: 'spring', damping: 15, stiffness: 300 }}
-                // 加入 tabular-nums 保证数字等宽，min-w-[2ch] 保证宽度不会因为个位数和十位数切换而塌陷
-                className="text-sm font-black text-blue-600 min-w-[2ch] text-center tabular-nums inline-block"
-              >
-                {item.quantity}
-              </motion.span>
-            </AnimatePresence>
+          <div className="relative flex h-5 items-center justify-center overflow-hidden min-w-[3ch]">
+            {isEditingQty ? (
+              <input
+                ref={inputRef}
+                autoFocus
+                type="number"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleQtyBlur}
+                onKeyDown={handleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-transparent border-none p-0 w-full text-center text-sm font-black text-blue-600 focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            ) : (
+              <AnimatePresence mode="popLayout">
+                <motion.span
+                  key={item.quantity}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -20, opacity: 0 }}
+                  transition={{ type: 'spring', damping: 15, stiffness: 300 }}
+                  className="text-sm font-black text-blue-600 tabular-nums inline-block"
+                >
+                  {item.quantity}
+                </motion.span>
+              </AnimatePresence>
+            )}
           </div>
         </div>
       </div>

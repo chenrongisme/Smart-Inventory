@@ -86,86 +86,25 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Auth Middleware
+// Simple Request Logger
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// Auth Middleware - DISABLED for local use
 const authenticate = (req: any, res: any, next: any) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    req.user = decoded;
-    next();
-  } catch (e) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
+  req.user = { id: 1, email: 'local@app', role: 'admin' };
+  next();
 };
 
 // --- API Routes ---
 
-// Auth
-app.post('/api/auth/register', (req, res) => {
-  const { email, password, security_question, security_answer } = req.body;
-  const hashed = bcrypt.hashSync(password, 10);
-  db.run('INSERT INTO users (email, password, security_question, security_answer) VALUES (?, ?, ?, ?)',
-    [email, hashed, security_question, security_answer], function(err) {
-      if (err) return res.status(400).json({ error: 'Email already exists' });
-      res.json({ id: this.lastID });
-    });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user: any) => {
-    if (!user || !bcrypt.compareSync(password, user.password)) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-    res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'none' });
-    res.json({ user: { id: user.id, email: user.email, role: user.role } });
-  });
-});
-
-app.post('/api/auth/logout', (req, res) => {
-  res.clearCookie('token');
-  res.json({ success: true });
-});
-
-app.get('/api/auth/me', authenticate, (req: any, res) => {
-  res.json({ user: req.user });
-});
-
-// Password Recovery
-app.post('/api/auth/recover-question', (req, res) => {
-  const { email } = req.body;
-  db.get('SELECT security_question FROM users WHERE email = ?', [email], (err, user: any) => {
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json({ question: user.security_question });
-  });
-});
-
-app.post('/api/auth/recover-reset', (req, res) => {
-  const { email, answer, newPassword } = req.body;
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user: any) => {
-    if (!user || user.security_answer !== answer) {
-      return res.status(401).json({ error: 'Incorrect answer' });
-    }
-    const hashed = bcrypt.hashSync(newPassword, 10);
-    db.run('UPDATE users SET password = ? WHERE id = ?', [hashed, user.id], (err) => {
-      res.json({ success: true });
-    });
-  });
-});
-
 // Cabinets
 app.get('/api/cabinets', authenticate, (req: any, res) => {
-  if (req.user.role === 'admin' && req.query.all === 'true') {
-    db.all('SELECT * FROM cabinets', (err, rows) => {
-      res.json(rows);
-    });
-  } else {
-    db.all('SELECT * FROM cabinets WHERE user_id = ?', [req.user.id], (err, rows) => {
-      res.json(rows);
-    });
-  }
+  db.all('SELECT * FROM cabinets WHERE user_id = ?', [req.user.id], (err, rows) => {
+    res.json(rows);
+  });
 });
 
 app.post('/api/cabinets', authenticate, (req: any, res) => {
@@ -320,13 +259,24 @@ app.post('/api/items', authenticate, upload.single('image'), (req: any, res) => 
 });
 
 app.patch('/api/items/:id/quantity', authenticate, (req: any, res) => {
-  const { change } = req.body; // positive for store, negative for take
+  const { change, value } = req.body; // change: offset, value: absolute
   db.get('SELECT * FROM items WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err, item: any) => {
     if (!item) return res.status(404).json({ error: 'Not found' });
-    const newQty = Math.max(0, item.quantity + change);
+    
+    let newQty;
+    let actualChange;
+    
+    if (value !== undefined) {
+      newQty = Math.max(0, parseInt(value));
+      actualChange = newQty - item.quantity;
+    } else {
+      newQty = Math.max(0, item.quantity + change);
+      actualChange = change;
+    }
+
     db.run('UPDATE items SET quantity = ? WHERE id = ?', [newQty, req.params.id], (err) => {
       db.run('INSERT INTO action_history (user_id, item_id, action_type, quantity_change) VALUES (?, ?, ?, ?)',
-        [req.user.id, req.params.id, change > 0 ? 'store' : 'take', change]);
+        [req.user.id, req.params.id, actualChange >= 0 ? 'store' : 'take', actualChange]);
       res.json({ quantity: newQty });
     });
   });
@@ -353,16 +303,18 @@ app.put('/api/items/:id', authenticate, upload.single('image'), (req: any, res) 
 });
 
 app.delete('/api/items/:id', authenticate, (req: any, res) => {
-  db.run('DELETE FROM items WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], (err) => {
+  db.run('DELETE FROM items WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], function(err) {
+    if (err) return res.status(500).json({ error: 'Database error' });
     res.json({ success: true });
   });
 });
 
 // History
 app.get('/api/history', authenticate, (req: any, res) => {
-  db.all(`SELECT h.*, i.name as item_name FROM action_history h 
-          JOIN items i ON h.item_id = i.id 
+  db.all(`SELECT h.*, IFNULL(i.name, '已删除物品') as item_name FROM action_history h 
+          LEFT JOIN items i ON h.item_id = i.id 
           WHERE h.user_id = ? ORDER BY h.timestamp DESC LIMIT 50`, [req.user.id], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Database error' });
     res.json(rows);
   });
 });

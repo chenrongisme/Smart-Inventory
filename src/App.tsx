@@ -188,9 +188,10 @@ const AuthPage = ({ onLogin }: { onLogin: (user: User) => void }) => {
 // --- Main App ---
 export default function App() {
   const { t, i18n } = useTranslation();
-  const [user, setUser] = useState<User | null>(null);
+  // Set a dummy user to bypass auth
+  const [user, setUser] = useState<User | null>({ id: 1, email: 'local@app', role: 'admin' });
   const [view, setView] = useState<'home' | 'history' | 'search' | 'settings' | 'admin' | 'cabinet' | 'sub'>('home');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // No more initial loading for auth check
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
   const [selectedSub, setSelectedSub] = useState<SubCabinet | null>(null);
@@ -225,7 +226,8 @@ export default function App() {
   const [showAllData, setShowAllData] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    // We can just rely on initial state now
+    handleDeepLink();
     
     const handlePopState = () => {
       handleDeepLink();
@@ -297,54 +299,37 @@ export default function App() {
     } catch (e) {}
   };
 
-  const checkAuth = async () => {
-    try {
-      const res = await fetch('/api/auth/me');
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data.user);
-      } else {
-        // If not logged in and on a deep link, we'll handle it in the render
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/' && currentPath !== '/login') {
-          // The AuthPage will handle the redirect param if we pass it
-        }
-      }
-    } catch (e) {}
-    setLoading(false);
-  };
-
   const fetchData = async () => {
     if (!user) return;
     const allParam = showAllData ? '?all=true' : '';
     const allParamAnd = showAllData ? '&all=true' : '';
 
     if (view === 'home') {
-      const res = await fetch(`/api/cabinets${allParam}`);
+      const res = await fetch(`/api/cabinets${allParam}`, { credentials: 'include' });
       const data = await res.json();
-      setCabinets(data);
+      if (Array.isArray(data)) setCabinets(data);
     } else if (view === 'cabinet' && selectedCabinet) {
       if (selectedCabinet.type === 'direct') {
-        const res = await fetch(`/api/items?cabinet_id=${selectedCabinet.id}${allParamAnd}`);
+        const res = await fetch(`/api/items?cabinet_id=${selectedCabinet.id}${allParamAnd}`, { credentials: 'include' });
         const data = await res.json();
-        setItems(data);
+        if (Array.isArray(data)) setItems(data);
       } else {
-        const res = await fetch(`/api/cabinets/${selectedCabinet.id}/subs`);
+        const res = await fetch(`/api/cabinets/${selectedCabinet.id}/subs`, { credentials: 'include' });
         const data = await res.json();
-        setSubs(data);
+        if (Array.isArray(data)) setSubs(data);
       }
     } else if (view === 'sub' && selectedSub) {
-      const res = await fetch(`/api/items?sub_cabinet_id=${selectedSub.id}${allParamAnd}`);
+      const res = await fetch(`/api/items?sub_cabinet_id=${selectedSub.id}${allParamAnd}`, { credentials: 'include' });
       const data = await res.json();
-      setItems(data);
+      if (Array.isArray(data)) setItems(data);
     } else if (view === 'history') {
-      const res = await fetch('/api/history');
+      const res = await fetch('/api/history', { credentials: 'include' });
       const data = await res.json();
-      setHistory(data);
+      if (Array.isArray(data)) setHistory(data);
     } else if (view === 'search') {
-      const res = await fetch(`/api/items?search=${searchQuery}${allParamAnd}`);
+      const res = await fetch(`/api/items?search=${searchQuery}${allParamAnd}`, { credentials: 'include' });
       const data = await res.json();
-      setItems(data);
+      if (Array.isArray(data)) setItems(data);
     }
   };
 
@@ -435,6 +420,18 @@ export default function App() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ change: -1 }),
+    });
+    if (res.ok) {
+      toast.success(t('Success'));
+      fetchData();
+    }
+  };
+
+  const handleSetQuantity = async (id: number, value: number) => {
+    const res = await fetch(`/api/items/${id}/quantity`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
     });
     if (res.ok) {
       toast.success(t('Success'));
@@ -575,8 +572,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    setUser(null);
+    // Just reset everything local
+    setUser({ id: 1, email: 'local@app', role: 'admin' });
     setView('home');
     setSelectedCabinet(null);
     setSelectedSub(null);
@@ -584,7 +581,7 @@ export default function App() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!user) return <AuthPage onLogin={setUser} />;
+  if (!user) return <div className="min-h-screen flex items-center justify-center">Loading User...</div>;
 
   // Context-Aware FAB Logic
   const getFABAction = () => {
@@ -598,7 +595,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24 overflow-x-hidden">
-      <Toaster position="top-center" />
+      <Toaster 
+        position="top-center" 
+        toastOptions={{
+          style: {
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: '#fff',
+            borderRadius: '99px',
+            padding: '8px 16px',
+            fontSize: '14px',
+            border: 'none',
+            textAlign: 'center',
+            width: 'fit-content',
+            minWidth: 'auto',
+            margin: '0 auto',
+          },
+        }}
+      />
       
       {/* Top Nav - Simplified */}
       <header className="bg-white px-6 py-4 sticky top-0 z-40 border-b border-gray-100 flex items-center justify-between">
@@ -620,10 +633,10 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div
             key={view + (selectedCabinet?.id || '') + (selectedSub?.id || '')}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
           >
             {view === 'home' && (
               <div className="space-y-4">
@@ -655,6 +668,7 @@ export default function App() {
                         item={item} 
                         onStore={handleStore} 
                         onTake={handleTake} 
+                        onSetQuantity={handleSetQuantity}
                         onEdit={handleEditItem}
                         onDelete={handleDeleteItem}
                         onShowDetails={(item) => { setSelectedItemForDetails(item); setShowItemDetails(true); }}
@@ -689,6 +703,7 @@ export default function App() {
                     item={item} 
                     onStore={handleStore} 
                     onTake={handleTake} 
+                    onSetQuantity={handleSetQuantity}
                     onEdit={handleEditItem}
                     onDelete={handleDeleteItem}
                     onShowDetails={(item) => { setSelectedItemForDetails(item); setShowItemDetails(true); }}
@@ -701,17 +716,19 @@ export default function App() {
               <div className="space-y-4">
                 <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">{t('Recent Actions')}</h2>
                 <div className="space-y-3">
-                  {history.map((h, idx) => (
-                    <div key={`history-log-${h.id}-${idx}`} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                  {history && history.length > 0 ? history.map((h, idx) => (
+                    <div key={`history-log-${h.id || idx}`} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                       <div>
-                        <p className="font-bold text-gray-900">{h.item_name}</p>
-                        <p className="text-xs text-gray-400">{new Date(h.timestamp).toLocaleString()}</p>
+                        <p className="font-bold text-gray-900">{h.item_name || t('Unknown Item')}</p>
+                        <p className="text-xs text-gray-400">{h.timestamp ? new Date(h.timestamp).toLocaleString() : '-'}</p>
                       </div>
-                      <div className={cn("font-black", h.quantity_change > 0 ? "text-green-500" : "text-red-500")}>
-                        {h.quantity_change > 0 ? '+' : ''}{h.quantity_change}
+                      <div className={cn("font-black", (h.quantity_change || 0) > 0 ? "text-green-500" : "text-red-500")}>
+                        {(h.quantity_change || 0) > 0 ? '+' : ''}{h.quantity_change || 0}
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-center text-gray-400 py-12">{t('No history found')}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -736,9 +753,18 @@ export default function App() {
                       item={item} 
                       onStore={handleStore} 
                       onTake={handleTake} 
+                      onSetQuantity={handleSetQuantity}
                       onEdit={handleEditItem}
                       onDelete={handleDeleteItem}
-                      onShowDetails={(item) => { setSelectedItemForDetails(item); setShowItemDetails(true); }}
+                      onShowDetails={(item) => { 
+                        if (item.sub_cabinet_id) {
+                          fetchSubAndItems(item.sub_cabinet_id);
+                          window.history.pushState({}, '', `/cabinet/sub/${item.sub_cabinet_id}`);
+                        } else if (item.cabinet_id) {
+                          fetchCabinetAndSubs(item.cabinet_id);
+                          window.history.pushState({}, '', `/cabinet/${item.cabinet_id}`);
+                        }
+                      }}
                     />
                   ))}
                 </div>

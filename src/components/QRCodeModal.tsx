@@ -62,14 +62,23 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ url, name, onClose }) 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none p-0">
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-[40px] p-8 w-full max-w-sm relative flex flex-col items-center shadow-2xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto"
+      />
+      <motion.div 
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="bg-white rounded-t-[32px] rounded-b-none p-8 pb-12 w-full max-w-lg shadow-2xl pointer-events-auto relative flex flex-col items-center border-t border-gray-100"
       >
-        <button onClick={onClose} className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+        <button onClick={onClose} className="absolute top-10 right-8 p-2 text-gray-400 hover:text-gray-600 transition-colors">
           <X size={24} />
         </button>
         

@@ -22,6 +22,9 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onStore, onTake, onSet
   const [editValue, setEditValue] = useState(item.quantity.toString());
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isLowStock = item.min_threshold !== undefined && item.min_threshold > 0 && item.quantity <= item.min_threshold;
+  const isExpiringSoon = item.expiry_date ? new Date(item.expiry_date).getTime() < (Date.now() + 7 * 24 * 60 * 60 * 1000) && new Date(item.expiry_date).getTime() > (Date.now() - 24 * 60 * 60 * 1000) : false;
+
   useEffect(() => {
     if (!isEditingQty) {
       setEditValue(item.quantity.toString());
@@ -52,8 +55,32 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onStore, onTake, onSet
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-[32px] p-4 shadow-sm border border-gray-100 flex items-center gap-4 mb-3 active:scale-[0.99] transition-transform"
+      className={cn(
+        "bg-white rounded-[32px] p-4 shadow-sm border flex items-center gap-4 mb-3 active:scale-[0.99] transition-transform relative overflow-hidden",
+        isLowStock ? "border-orange-200" : "border-gray-100"
+      )}
     >
+      {/* Path Label & Status */}
+      <div className="absolute top-0 left-4 flex gap-1 items-start">
+        {(item.cabinet_name || item.sub_cabinet_name) && (
+          <div className="px-2 py-0.5 bg-blue-50 rounded-b-lg border-x border-b border-blue-100/50">
+            <span className="text-[8px] font-black text-blue-600 whitespace-nowrap uppercase tracking-tighter">
+              {item.cabinet_name}{item.sub_cabinet_name ? ` - ${item.sub_cabinet_name}` : ''}
+            </span>
+          </div>
+        )}
+        {isLowStock && (
+          <div className="px-2 py-0.5 bg-orange-500 rounded-b-lg shadow-sm">
+            <span className="text-[8px] font-black text-white uppercase tracking-tighter">库存低</span>
+          </div>
+        )}
+        {isExpiringSoon && (
+          <div className="px-2 py-0.5 bg-red-500 rounded-b-lg shadow-sm">
+            <span className="text-[8px] font-black text-white uppercase tracking-tighter">即将到期</span>
+          </div>
+        )}
+      </div>
+
       {/* Left: Circular Image */}
       <div 
         onClick={() => onShowDetails?.(item)}

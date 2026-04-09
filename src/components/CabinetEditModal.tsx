@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Trash2 } from 'lucide-react';
+import { Trash2, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface CabinetEditModalProps {
@@ -13,6 +13,9 @@ interface CabinetEditModalProps {
   onSubmit: () => void;
   onDelete: () => void;
   title: string;
+  image: File | null;
+  setImage: (file: File | null) => void;
+  existingImageUrl?: string | null;
 }
 
 export const CabinetEditModal: React.FC<CabinetEditModalProps> = ({
@@ -25,8 +28,18 @@ export const CabinetEditModal: React.FC<CabinetEditModalProps> = ({
   onSubmit,
   onDelete,
   title,
+  image,
+  setImage,
+  existingImageUrl,
 }) => {
   const { t } = useTranslation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setImage(e.target.files[0]);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -44,14 +57,41 @@ export const CabinetEditModal: React.FC<CabinetEditModalProps> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            onDragEnd={(_, info) => { if (info.offset.y > 100) onClose(); }}
+            dragElastic={0.2}
             className="bg-white rounded-t-[32px] rounded-b-none p-6 pb-12 w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.15)] pointer-events-auto relative border border-gray-100"
           >
             <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6" />
+            
+            <div className="flex flex-col items-center mb-6">
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="w-24 h-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer overflow-hidden relative group"
+              >
+                {image ? (
+                  <img src={URL.createObjectURL(image)} alt="Preview" className="w-full h-full object-cover" />
+                ) : existingImageUrl ? (
+                  <img src={existingImageUrl} alt="Existing" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <Camera className="text-gray-300 group-hover:text-blue-500 transition-colors" size={32} />
+                    <span className="text-[10px] font-black text-gray-300 uppercase mt-1">Logo</span>
+                  </>
+                )}
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleImageChange}
+                />
+              </div>
+            </div>
+
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-black text-gray-900">{title}</h2>
-              <button onClick={onClose} className="p-1 text-gray-400">
-                <X size={20} />
-              </button>
             </div>
             <div className="space-y-4">
               <input

@@ -1,7 +1,8 @@
 export interface User {
   id: number;
-  email: string;
-  role: 'user' | 'admin';
+  username: string;
+  role: 'user' | 'admin' | 'superadmin';
+  status?: 'active' | 'blocked';
 }
 
 export interface Cabinet {
@@ -9,6 +10,7 @@ export interface Cabinet {
   name: string;
   details: string;
   type: 'direct' | 'group';
+  image_url?: string | null;
 }
 
 export interface SubCabinet {
@@ -16,6 +18,7 @@ export interface SubCabinet {
   cabinet_id: number;
   name: string;
   details: string;
+  image_url?: string | null;
 }
 
 export interface Item {
@@ -26,11 +29,17 @@ export interface Item {
   image_url: string | null;
   cabinet_id: number | null;
   sub_cabinet_id: number | null;
+  cabinet_name?: string;
+  sub_cabinet_name?: string;
+  expiry_date?: string | null;
+  min_threshold?: number;
 }
 
 export interface HistoryLog {
   id: number;
   item_name: string;
+  cabinet_name?: string;
+  sub_name?: string;
   action_type: 'store' | 'take' | 'create' | 'edit' | 'delete';
   quantity_change: number;
   timestamp: string;

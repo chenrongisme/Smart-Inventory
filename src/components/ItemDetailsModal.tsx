@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Edit2, Package, Info } from 'lucide-react';
+import { Edit2, Package, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Item } from '../types';
 
@@ -27,6 +27,10 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        drag="y"
+        dragConstraints={{ top: 0 }}
+        onDragEnd={(_, info) => { if (info.offset.y > 100) onClose(); }}
+        dragElastic={0.2}
         className="bg-white rounded-t-[32px] rounded-b-none w-full max-w-lg shadow-2xl pointer-events-auto relative border-t border-gray-100 overflow-hidden flex flex-col max-h-[90vh] pb-12"
       >
         <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 mt-4 flex-shrink-0" />
@@ -44,12 +48,6 @@ export const ItemDetailsModal: React.FC<ItemDetailsModalProps> = ({ item, onClos
               <Package size={64} />
             </div>
           )}
-          <button 
-            onClick={onClose}
-            className="absolute top-6 right-6 w-10 h-10 bg-black/20 backdrop-blur-md text-white rounded-full flex items-center justify-center active:scale-90 transition-transform"
-          >
-            <X size={24} />
-          </button>
         </div>
 
         {/* Content */}

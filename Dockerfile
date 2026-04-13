@@ -1,42 +1,46 @@
-# 使用 Node.js 20 官方镜像
-FROM node:20-slim
+# Smart Inventory - Production Dockerfile
+# Multi-stage: builder stage for frontend, runner stage for runtime
+# Final image uses Alpine for minimal size
 
-# 安装编译 sqlite3 所需的系统工具
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    pkg-config \
-    && ln -s /usr/bin/python3 /usr/bin/python \
-    && rm -rf /var/lib/apt/lists/*
+# ── Stage 1: Build frontend ────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# 设置 PYTHON 环境变量，供 node-gyp 使用
-ENV PYTHON=/usr/bin/python3
+RUN apk add --no-cache python3 make g++
+RUN ln -sf /usr/bin/python3 /usr/bin/python
 
-# 先复制 package.json 和 package-lock.json
 COPY package*.json ./
+RUN npm install
 
-# 强制执行构建，确保 sqlite3 编译成功
-RUN npm install --omit=dev --build-from-source
-
-# 复制源码
 COPY . .
-
-# 执行前端构建
 RUN npm run build
 
-# 暴露 3000 端口
-EXPOSE 3000
+# ── Stage 2: Production runtime ───────────────────────────────────────────────
+FROM node:20-alpine AS runner
 
-# 环境变量设置
+WORKDIR /app
+
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV AI_API_KEY=""
-ENV MODEL_TYPE="gemini" # gemini, doubao, qwen, ernie, gemma, minimax
-ENV AI_MODEL_NAME="gemini-1.5-flash"
-ENV AI_ENDPOINT="" # Optional: for gemma/custom endpoints
 
-# 启动后端服务
-CMD ["npm", "start"]
+# pg (node-postgres) is pure JavaScript - NO build tools needed!
+
+COPY package*.json tsconfig.json ./
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/server.ts ./
+
+# Install production deps only
+RUN npm install --omit=dev \
+    && rm -rf /tmp/* /var/cache/apk/*
+
+# Non-root user
+RUN addgroup -g 1001 -S nodejs && adduser -S nodeapp -u 1001
+
+RUN mkdir -p /app/uploads /app/data && chown -R nodeapp:nodejs /app
+USER nodeapp
+
+EXPOSE 3000
+
+CMD ["node_modules/.bin/tsx", "server.ts"]

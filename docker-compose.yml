@@ -1,21 +1,48 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: si-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_secure_password_2024
+      - POSTGRES_DB=smart_inventory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   app:
     build: .
     container_name: smart-inventory
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=local-app-secret-no-login-required
-      - DATABASE_URL=./data/inventory.db
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=admin123
+      - JWT_SECRET=change-me-in-production-use-strong-random-secret
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_USER=postgres
+      - PG_PASSWORD=postgres_secure_password_2024
+      - PG_DATABASE=smart_inventory
     volumes:
-      # 挂载数据和上传目录，实现持久化
       - ./data:/app/data
       - ./uploads:/app/uploads
-      # 关键：使用匿名卷覆盖容器内的 node_modules，防止宿主机的 node_modules 干扰容器
-      - /app/node_modules
     restart: always
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_data:
